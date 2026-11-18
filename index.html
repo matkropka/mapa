@@ -101,14 +101,50 @@ var style={version:8,
   {id:'place-city',type:'symbol',source:'omt','source-layer':'place',filter:['in','class','city','state'],layout:{'text-field':['coalesce',['get','name:pl'],['get','name']],'text-font':FONTB,'text-size':['interpolate',['linear'],['zoom'],4,13,12,24],'text-transform':'uppercase','text-letter-spacing':.1},paint:{'text-color':C.text,'text-halo-color':C.halo,'text-halo-width':2}}
  ]};
 
-var map=new maplibregl.Map({container:'map',style:style,center:[19.94,50.06],zoom:13,pitch:0,bearing:0,attributionControl:{compact:true},maxPitch:70});
+var map=null;
+function recolor(st){
+  st.layers.forEach(function(l){
+    var id=l.id.toLowerCase(),p=l.paint=l.paint||{};
+    if(l.type==='background'){p['background-color']=C.land;return}
+    if(l.type==='fill'){
+      var c=C.urban;
+      if(/water/.test(id))c=C.water;
+      else if(/wood|forest/.test(id))c=C.wood;
+      else if(/park|grass|green|cemetery|pitch|golf|garden|landcover|farm/.test(id))c=C.park;
+      else if(/building/.test(id))c=C.build;
+      else if(/aeroway|airport|runway/.test(id))c='#c4bb9d';
+      else if(/ice|glacier|sand|rock/.test(id))c=C.land;
+      p['fill-color']=c;delete p['fill-pattern'];
+      if(/building/.test(id)){p['fill-opacity']=1}
+    }else if(l.type==='fill-extrusion'){
+      p['fill-extrusion-color']=C.build;p['fill-extrusion-opacity']=.85;
+    }else if(l.type==='line'){
+      if(/water/.test(id))p['line-color']=C.water;
+      else if(/rail|transit/.test(id))p['line-color']=C.rail;
+      else if(/boundary|admin/.test(id))p['line-color']='#8b8062';
+      else if(/(casing|case|bridge_.*casing|tunnel_.*casing)/.test(id))p['line-color']=C.roadCase;
+      else if(/motorway|trunk/.test(id))p['line-color']=C.motor;
+      else if(/primary|secondary/.test(id))p['line-color']=C.roadMajor;
+      else if(/road|street|path|tertiary|minor|service|link|bridge|tunnel|highway|pedestrian|track/.test(id))p['line-color']=C.roadMinor;
+    }else if(l.type==='symbol'){
+      p['text-color']=C.text;p['text-halo-color']=C.halo;p['text-halo-width']=1.6;
+    }
+  });
+  return st;
+}
+function startMap(st){
+  map=new maplibregl.Map({container:'map',style:st,center:[19.94,50.06],zoom:13,pitch:0,bearing:0,attributionControl:{compact:true},maxPitch:70});
+  initMap();
+}
+fetch('https://tiles.openfreemap.org/styles/liberty').then(function(r){return r.json()}).then(function(st){startMap(recolor(st))}).catch(function(){startMap(style)});
 var $=function(id){return document.getElementById(id)};
 
+var meMarker=null,wpMarker=null,me=null,heading=0,follow=true,tilted=false,dest=null,route=null,stepIdx=0,voiceOn=true,lastReroute=0,mapReady=false;
+function initMap(){
 // marker gracza (żółta strzałka)
 var meEl=document.createElement('div');meEl.className='me';
 meEl.innerHTML='<svg viewBox="0 0 34 34" width="34" height="34"><path d="M17 2 L29 30 L17 24 L5 30 Z" fill="#f4c430" stroke="#10161c" stroke-width="2.5" stroke-linejoin="round"/></svg>';
-var meMarker=new maplibregl.Marker({element:meEl,rotationAlignment:'map',pitchAlignment:'map'}).setLngLat([19.94,50.06]).addTo(map);
-var wpMarker=null,me=null,heading=0,follow=true,tilted=false,dest=null,route=null,stepIdx=0,voiceOn=true,lastReroute=0,mapReady=false;
+meMarker=new maplibregl.Marker({element:meEl,rotationAlignment:'map',pitchAlignment:'map'}).setLngLat([19.94,50.06]).addTo(map);
 
 map.on('load',function(){
   mapReady=true;
@@ -117,6 +153,7 @@ map.on('load',function(){
   map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':C.wp||'#d946ef','line-width':['interpolate',['linear'],['zoom'],10,3,18,10]}});
 });
 
+}
 function fmtDist(m){return m>=1000?(m/1000).toFixed(m>=10000?0:1)+' km':Math.round(m/10)*10+' m'}
 function fmtTime(s){var m=Math.round(s/60);return m>=60?Math.floor(m/60)+' h '+(m%60)+' min':m+' min'}
 function hav(a,b){var R=6371000,t=Math.PI/180,dLa=(b[1]-a[1])*t,dLo=(b[0]-a[0])*t,x=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a[1]*t)*Math.cos(b[1]*t)*Math.sin(dLo/2)*Math.sin(dLo/2);return 2*R*Math.asin(Math.sqrt(x))}
@@ -155,19 +192,25 @@ function setDest(ll,name){
   if(!me){$('hint').style.display='';$('hint').textContent='Czekam na GPS, aby wyznaczyć trasę…';map.easeTo({center:ll,zoom:15});return}
   getRoute();
 }
+function hintMsg(t){$('hint').style.display='';$('hint').textContent=t}
 function getRoute(){
   if(!me||!dest)return;
   lastReroute=Date.now();
-  var u='https://router.project-osrm.org/route/v1/driving/'+me[0]+','+me[1]+';'+dest[0]+','+dest[1]+'?overview=full&geometries=geojson&steps=true&language=pl';
-  fetch(u).then(function(r){return r.json()}).then(function(j){
-    if(!j.routes||!j.routes.length){$('hint').style.display='';$('hint').textContent='Nie znaleziono trasy';return}
-    route=j.routes[0];stepIdx=0;
-    map.getSource('route').setData({type:'Feature',geometry:route.geometry});
-    $('nav').style.display='block';$('hint').style.display='none';
-    var b=new maplibregl.LngLatBounds();route.geometry.coordinates.forEach(function(c){b.extend(c)});
-    if(!tilted&&!follow)map.fitBounds(b,{padding:{top:90,bottom:200,left:40,right:70},duration:800});
-    updateNav(true);
-  }).catch(function(){$('hint').style.display='';$('hint').textContent='Brak połączenia z serwerem tras'});
+  var q=me[0]+','+me[1]+';'+dest[0]+','+dest[1]+'?overview=full&geometries=geojson&steps=true';
+  var servers=['https://router.project-osrm.org/route/v1/driving/','https://routing.openstreetmap.de/routed-car/route/v1/driving/'];
+  var err='';
+  (function tryNext(i){
+    if(i>=servers.length){hintMsg('Brak trasy: '+err);return}
+    fetch(servers[i]+q).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(j){
+      if(!j.routes||!j.routes.length){err=(j.code||'')+' '+(j.message||'');tryNext(i+1);return}
+      route=j.routes[0];stepIdx=0;spoken=-1;
+      map.getSource('route').setData({type:'Feature',geometry:route.geometry});
+      $('nav').style.display='block';$('hint').style.display='none';
+      var b=new maplibregl.LngLatBounds();route.geometry.coordinates.forEach(function(c){b.extend(c)});
+      if(!tilted&&!follow)map.fitBounds(b,{padding:{top:90,bottom:200,left:40,right:70},duration:800});
+      updateNav(true);
+    }).catch(function(e){err=e.message;tryNext(i+1)});
+  })(0);
 }
 var PL={'turn':'Skręć','new name':'Jedź prosto','depart':'Ruszaj','arrive':'Cel osiągnięty','merge':'Włącz się','on ramp':'Wjedź na wjazd','off ramp':'Zjedź','fork':'Na rozwidleniu','end of road':'Na końcu drogi skręć','continue':'Jedź prosto','roundabout':'Rondo','rotary':'Rondo','roundabout turn':'Na rondzie skręć','notification':'Jedź dalej'};
 var DIR={'left':'w lewo','right':'w prawo','slight left':'lekko w lewo','slight right':'lekko w prawo','sharp left':'ostro w lewo','sharp right':'ostro w prawo','straight':'prosto','uturn':'zawróć'};
