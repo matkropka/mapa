@@ -261,16 +261,18 @@ function showResults(items){
 }
 function search(){
   var q=$('q').value.trim();if(!q)return;
+  $('q').blur();
   var box=$('results');box.hidden=false;box.innerHTML='<button>Szukam…</button>';
-  var u='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=pl&q='+encodeURIComponent(q);
-  if(me)u+='&viewbox='+[me[0]-.5,me[1]+.5,me[0]+.5,me[1]-.5].join(',');
-  fetch(u).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(list){
-    showResults(list.map(function(x){return{name:x.display_name,lon:+x.lon,lat:+x.lat}}));
+  var pu='https://photon.komoot.io/api/?limit=7&q='+encodeURIComponent(q);
+  if(me)pu+='&lat='+me[1]+'&lon='+me[0];
+  else{var c=map?map.getCenter():null;if(c)pu+='&lat='+c.lat+'&lon='+c.lng}
+  fetch(pu).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(j){
+    if(!j.features.length)throw new Error('empty');
+    showResults(j.features.map(function(f){var p=f.properties;return{name:[p.name,[p.street,p.housenumber].filter(Boolean).join(' '),p.city||p.county,p.country].filter(Boolean).join(', '),lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1]}}));
   }).catch(function(){
-    var pu='https://photon.komoot.io/api/?limit=6&lang=default&q='+encodeURIComponent(q);
-    if(me)pu+='&lat='+me[1]+'&lon='+me[0];
-    fetch(pu).then(function(r){return r.json()}).then(function(j){
-      showResults(j.features.map(function(f){var p=f.properties;return{name:[p.name,p.street,p.city||p.county,p.country].filter(Boolean).join(', '),lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1]}}));
+    var u='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=pl&q='+encodeURIComponent(q);
+    fetch(u).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(list){
+      showResults(list.map(function(x){return{name:x.display_name,lon:+x.lon,lat:+x.lat}}));
     }).catch(function(e){box.innerHTML='<button>Błąd wyszukiwania: '+(e.message||'brak internetu')+'</button>'});
   });
 }
