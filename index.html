@@ -155,11 +155,6 @@ map.on('load',function(){
   map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':C.wp||'#d946ef','line-width':['interpolate',['linear'],['zoom'],10,3,18,10]}});
 });
 
-}
-function fmtDist(m){return m>=1000?(m/1000).toFixed(m>=10000?0:1)+' km':Math.round(m/10)*10+' m'}
-function fmtTime(s){var m=Math.round(s/60);return m>=60?Math.floor(m/60)+' h '+(m%60)+' min':m+' min'}
-function hav(a,b){var R=6371000,t=Math.PI/180,dLa=(b[1]-a[1])*t,dLo=(b[0]-a[0])*t,x=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a[1]*t)*Math.cos(b[1]*t)*Math.sin(dLo/2)*Math.sin(dLo/2);return 2*R*Math.asin(Math.sqrt(x))}
-
 // GPS
 function onPos(p){
   var c=p.coords;me=[c.longitude,c.latitude];
@@ -194,6 +189,11 @@ function setDestImpl(ll,name){
   if(!me){$('hint').style.display='';$('hint').textContent='Czekam na GPS, aby wyznaczyć trasę…';map.easeTo({center:ll,zoom:15});return}
   getRoute();
 }
+}
+function fmtDist(m){return m>=1000?(m/1000).toFixed(m>=10000?0:1)+' km':Math.round(m/10)*10+' m'}
+function fmtTime(s){var m=Math.round(s/60);return m>=60?Math.floor(m/60)+' h '+(m%60)+' min':m+' min'}
+function hav(a,b){var R=6371000,t=Math.PI/180,dLa=(b[1]-a[1])*t,dLo=(b[0]-a[0])*t,x=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a[1]*t)*Math.cos(b[1]*t)*Math.sin(dLo/2)*Math.sin(dLo/2);return 2*R*Math.asin(Math.sqrt(x))}
+
 function hintMsg(t){$('hint').style.display='';$('hint').textContent=t}
 function getRoute(){
   if(!me||!dest)return;
