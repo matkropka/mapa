@@ -45,7 +45,7 @@ html,body{margin:0;height:100%;background:var(--ink);color:var(--text);font-fami
 <div id="map"></div>
 
 <div class="hud top">
-  <input id="q" type="search" placeholder="Szukaj miejsca lub adresu" autocomplete="off" enterkeyhint="search">
+  <input id="q" type="search" placeholder="Szukaj miejsca (v4)" autocomplete="off" enterkeyhint="search">
   <button class="btn" id="go">Szukaj</button>
 </div>
 <div id="results" hidden></div>
@@ -69,6 +69,7 @@ html,body{margin:0;height:100%;background:var(--ink);color:var(--text);font-fami
 
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
+window.onerror=function(m,u,l){var h=document.getElementById('hint');if(h){h.style.display='';h.textContent='Błąd: '+m+' (linia '+l+')'}};
 // Styl mapy: paleta inspirowana mapą z gier open-world (własna, nie kopia grafiki)
 var C={water:'#5f93b5',land:'#d9d0b4',park:'#aebf8c',wood:'#9db17d',urban:'#cfc5a6',build:'#b8ad8e',
   roadMinor:'#f3eedd',roadMajor:'#fff7d6',roadCase:'#8b8062',motor:'#f4c430',rail:'#7b7358',text:'#3a3426',halo:'#efe8d0'};
@@ -276,7 +277,8 @@ function search(){
     }).catch(function(e){box.innerHTML='<button>Błąd wyszukiwania: '+(e.message||'brak internetu')+'</button>'});
   });
 }
-$('go').onclick=search;
+$('go').addEventListener('click',function(e){e.preventDefault();search()});
+$('q').form;
 $('q').addEventListener('keydown',function(e){if(e.key==='Enter')search()});
 </script>
 </body>
