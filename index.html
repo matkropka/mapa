@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#2f5d7c">
+<meta name="theme-color" content="#d9bb8c">
 <title>Mapa Los</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
-:root{--ink:#10161c;--panel:rgba(16,22,28,.88);--line:#2a3640;--text:#f2efe6;--dim:#9aa7b1;--gold:#f4c430;--wp:#d946ef;--blue:#4aa3d9}
+:root{--ink:#1e1610;--panel:rgba(34,25,18,.9);--line:#4a3a2c;--text:#f1e3c4;--dim:#b49e7c;--gold:#e8b13a;--wp:#d63a2a;--blue:#8aa6a3}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--ink);color:var(--text);font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;overflow:hidden}
 #map{position:absolute;inset:0}
@@ -71,8 +71,8 @@ html,body{margin:0;height:100%;background:var(--ink);color:var(--text);font-fami
 <script>
 window.onerror=function(m,u,l){var h=document.getElementById('hint');if(h){h.style.display='';h.textContent='Błąd: '+m+' (linia '+l+')'}};
 // Styl mapy: paleta inspirowana mapą z gier open-world (własna, nie kopia grafiki)
-var C={water:'#5f93b5',land:'#d9d0b4',park:'#aebf8c',wood:'#9db17d',urban:'#cfc5a6',build:'#b8ad8e',
-  roadMinor:'#f3eedd',roadMajor:'#fff7d6',roadCase:'#8b8062',motor:'#f4c430',rail:'#7b7358',text:'#3a3426',halo:'#efe8d0'};
+var C={water:'#8aa6a3',land:'#d9bb8c',park:'#cdb07a',wood:'#c2a56f',urban:'#d3b283',build:'#c9a574',
+  roadMinor:'#6b5239',roadMajor:'#4a3a2c',roadCase:'#2a2018',motor:'#2a2018',rail:'#8a6f4d',text:'#3a2a1c',halo:'#e6cfa4',wp:'#d63a2a',outline:'#5a4632'};
 var FONT=['Noto Sans Regular'],FONTB=['Noto Sans Bold'];
 var style={version:8,
  glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
@@ -113,16 +113,16 @@ function recolor(st){
       else if(/wood|forest/.test(id))c=C.wood;
       else if(/park|grass|green|cemetery|pitch|golf|garden|landcover|farm/.test(id))c=C.park;
       else if(/building/.test(id))c=C.build;
-      else if(/aeroway|airport|runway/.test(id))c='#c4bb9d';
+      else if(/aeroway|airport|runway/.test(id))c='#c8a878';
       else if(/ice|glacier|sand|rock/.test(id))c=C.land;
       p['fill-color']=c;delete p['fill-pattern'];
-      if(/building/.test(id)){p['fill-opacity']=1}
+      if(/building/.test(id)){p['fill-opacity']=1;p['fill-outline-color']=C.outline}
     }else if(l.type==='fill-extrusion'){
       p['fill-extrusion-color']=C.build;p['fill-extrusion-opacity']=.85;
     }else if(l.type==='line'){
       if(/water/.test(id))p['line-color']=C.water;
       else if(/rail|transit/.test(id))p['line-color']=C.rail;
-      else if(/boundary|admin/.test(id))p['line-color']='#8b8062';
+      else if(/boundary|admin/.test(id))p['line-color']='#8a6f4d';
       else if(/(casing|case|bridge_.*casing|tunnel_.*casing)/.test(id))p['line-color']=C.roadCase;
       else if(/motorway|trunk/.test(id))p['line-color']=C.motor;
       else if(/primary|secondary/.test(id))p['line-color']=C.roadMajor;
@@ -133,11 +133,59 @@ function recolor(st){
   });
   return st;
 }
+
+// ---- własne ikony miejsc (rysowane kodem, w stylu map z gier) ----
+var ICON_OF={shop:'basket',grocery:'basket',clothing_store:'shirt',fast_food:'burger',restaurant:'fork',cafe:'cup',bar:'glass',fuel:'pump',bank:'dollar',atm:'dollar',hospital:'cross',pharmacy:'cross',parking:'P',lodging:'bed',school:'book',college:'book',library:'book',post:'mail',police:'shield',cinema:'star',theatre:'star',museum:'star'};
+function drawIcon(key,size){
+  var cv=document.createElement('canvas');cv.width=cv.height=size;var x=cv.getContext('2d');var k=size/24;x.scale(k,k);
+  x.fillStyle='#2a2018';x.strokeStyle='#f1e3c4';x.lineWidth=1.3;x.beginPath();x.arc(12,12,11,0,6.2832);x.fill();x.stroke();
+  x.fillStyle='#f1e3c4';x.strokeStyle='#f1e3c4';x.lineWidth=1.7;x.lineCap='round';x.lineJoin='round';
+  var F=function(d){x.fill(new Path2D(d))},S=function(d){x.stroke(new Path2D(d))};
+  x.save();x.translate(12,12);x.scale(.62,.62);x.translate(-12,-12);
+  if(key==='basket'){F('M3 10h18l-2.2 10H5.2z');S('M7 10l3-6M17 10l-3-6')}
+  else if(key==='shirt')F('M8 4L2 8l3 4 2.5-1.5V21h9V10.5L19 12l3-4-6-4c-1 2.5-7 2.5-8 0z');
+  else if(key==='burger'){F('M3 11a9 7 0 0 1 18 0z');F('M3 12.5h18v2.2H3z');F('M4 16h16v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z')}
+  else if(key==='fork'){S('M7 3v18M4 3v5a3 3 0 0 0 6 0V3');S('M17 3c-3 2-3 8 0 10v8')}
+  else if(key==='cup'){F('M4 7h12v7a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z');S('M16 9h2a2.5 2.5 0 0 1 0 5h-2')}
+  else if(key==='glass'){F('M4 4h16l-8 9z');S('M12 13v7M7 20h10')}
+  else if(key==='pump'){F('M5 4h9v17H5z');S('M14 8h3a2 2 0 0 1 2 2v7a1.8 1.8 0 0 0 3.6 0V9L19 5')}
+  else if(key==='cross')F('M9.5 3h5v6.5H21v5h-6.5V21h-5v-6.5H3v-5h6.5z');
+  else if(key==='bed'){S('M3 6v14M3 15h18v5M21 15v-3a3 3 0 0 0-3-3h-8v6');F('M5.5 11.5a2.2 2.2 0 1 0 .01 0z')}
+  else if(key==='book'){F('M1 9l11-5 11 5-11 5z');S('M6 13v5c3 3 9 3 12 0v-5')}
+  else if(key==='mail'){F('M3 6h18v13H3z');x.strokeStyle='#2a2018';S('M3 6l9 7 9-7')}
+  else if(key==='shield')F('M12 2l8 3v7c0 5-3.5 8-8 10-4.5-2-8-5-8-10V5z');
+  else if(key==='star')F('M12 2l3 6.5 7 .9-5 4.9 1.3 7L12 18l-6.3 3.3 1.3-7-5-4.9 7-.9z');
+  else if(key==='gem'){F('M6 4h12l5 6-11 11L1 10z');x.strokeStyle='#2a2018';S('M1 10h22M9 4l-2 6 5 11 5-11-2-6')}
+  else if(key==='dollar'||key==='P'){x.restore();x.save();x.fillStyle='#f1e3c4';x.font='bold 15px Arial,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(key==='P'?'P':'$',12,13)}
+  x.restore();
+  return x.getImageData(0,0,size,size);
+}
+var POI_CLASSES=Object.keys(ICON_OF);
+function addPoiLayer(st){
+  var src=null,font=['Noto Sans Regular'];
+  Object.keys(st.sources).forEach(function(k){if(!src&&st.sources[k].type==='vector')src=k});
+  st.layers.forEach(function(l){
+    if(l['source-layer']==='poi'||/^poi/.test(l.id)){l.layout=l.layout||{};l.layout.visibility='none'}
+    if(l.type==='symbol'&&l.layout&&l.layout['text-font']&&!font.custom){font=l.layout['text-font'];font.custom=true}
+  });
+  if(!src)return st;
+  var f=[];font.forEach(function(x){f.push(x)});
+  var m=['match',['get','class']];
+  POI_CLASSES.forEach(function(c){m.push(c,'ic-'+ICON_OF[c])});
+  m.push('ic-basket');
+  st.layers.push({id:'poi-gta',type:'symbol',source:src,'source-layer':'poi',minzoom:14.5,
+    filter:['in',['get','class'],['literal',POI_CLASSES]],
+    layout:{'icon-image':['case',['==',['get','subclass'],'jewelry'],'ic-gem',m],
+      'icon-size':.55,'icon-allow-overlap':false,'icon-padding':6,'text-field':['coalesce',['get','name:pl'],['get','name']],'text-font':f,'text-size':10,'text-anchor':'top','text-offset':[0,1.3],'text-optional':true,'text-max-width':7},
+    paint:{'text-color':C.text,'text-halo-color':C.halo,'text-halo-width':1.5}});
+  return st;
+}
 function startMap(st){
   map=new maplibregl.Map({container:'map',style:st,center:[19.94,50.06],zoom:13,pitch:0,bearing:0,attributionControl:{compact:true},maxPitch:70});
+  map.on('styleimagemissing',function(e){if(e.id.indexOf('ic-')===0){try{map.addImage(e.id,drawIcon(e.id.slice(3),96),{pixelRatio:2})}catch(_){}}});
   initMap();
 }
-fetch('https://tiles.openfreemap.org/styles/liberty').then(function(r){return r.json()}).then(function(st){startMap(recolor(st))}).catch(function(){startMap(style)});
+fetch('https://tiles.openfreemap.org/styles/liberty').then(function(r){return r.json()}).then(function(st){startMap(addPoiLayer(recolor(st)))}).catch(function(){startMap(style)});
 var $=function(id){return document.getElementById(id)};
 
 var meMarker=null,wpMarker=null,me=null,heading=0,follow=true,tilted=false,dest=null,route=null,stepIdx=0,voiceOn=true,lastReroute=0,mapReady=false;
@@ -145,14 +193,14 @@ function initMap(){
 window.setDest=function(ll,n){return setDestImpl(ll,n)};
 // marker gracza (żółta strzałka)
 var meEl=document.createElement('div');meEl.className='me';
-meEl.innerHTML='<svg viewBox="0 0 34 34" width="34" height="34"><path d="M17 2 L29 30 L17 24 L5 30 Z" fill="#f4c430" stroke="#10161c" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+meEl.innerHTML='<svg viewBox="0 0 34 34" width="34" height="34"><path d="M17 2 L29 30 L17 24 L5 30 Z" fill="#f1e3c4" stroke="#2a2018" stroke-width="2.5" stroke-linejoin="round"/></svg>';
 meMarker=new maplibregl.Marker({element:meEl,rotationAlignment:'map',pitchAlignment:'map'}).setLngLat([19.94,50.06]).addTo(map);
 
 map.on('load',function(){
   mapReady=true;
   map.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
-  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#2b0a33','line-width':['interpolate',['linear'],['zoom'],10,6,18,18]}});
-  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':C.wp||'#d946ef','line-width':['interpolate',['linear'],['zoom'],10,3,18,10]}});
+  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#3a0d08','line-width':['interpolate',['linear'],['zoom'],10,6,18,18]}});
+  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':C.wp,'line-width':['interpolate',['linear'],['zoom'],10,3,18,10]}});
 });
 
 // GPS
