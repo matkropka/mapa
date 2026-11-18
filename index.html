@@ -141,6 +141,7 @@ var $=function(id){return document.getElementById(id)};
 
 var meMarker=null,wpMarker=null,me=null,heading=0,follow=true,tilted=false,dest=null,route=null,stepIdx=0,voiceOn=true,lastReroute=0,mapReady=false;
 function initMap(){
+window.setDest=function(ll,n){return setDestImpl(ll,n)};
 // marker gracza (żółta strzałka)
 var meEl=document.createElement('div');meEl.className='me';
 meEl.innerHTML='<svg viewBox="0 0 34 34" width="34" height="34"><path d="M17 2 L29 30 L17 24 L5 30 Z" fill="#f4c430" stroke="#10161c" stroke-width="2.5" stroke-linejoin="round"/></svg>';
@@ -179,12 +180,12 @@ $('tilt').onclick=function(){tilted=!tilted;this.classList.toggle('on',tilted);m
 $('north').onclick=function(){map.easeTo({bearing:0,duration:500})};
 
 // cel: długie przytrzymanie
-map.on('contextmenu',function(e){setDest([e.lngLat.lng,e.lngLat.lat],'Wybrany punkt')});
+map.on('contextmenu',function(e){setDestImpl([e.lngLat.lng,e.lngLat.lat],'Wybrany punkt')});
 var pressT=null;
-map.on('touchstart',function(e){if(e.points&&e.points.length>1)return;pressT=setTimeout(function(){setDest([e.lngLat.lng,e.lngLat.lat],'Wybrany punkt')},650)});
+map.on('touchstart',function(e){if(e.points&&e.points.length>1)return;pressT=setTimeout(function(){setDestImpl([e.lngLat.lng,e.lngLat.lat],'Wybrany punkt')},650)});
 ['touchend','touchmove','touchcancel','dragstart','zoomstart'].forEach(function(n){map.on(n,function(){clearTimeout(pressT)})});
 
-function setDest(ll,name){
+function setDestImpl(ll,name){
   dest=ll;$('hint').style.display='none';$('results').hidden=true;
   if(wpMarker)wpMarker.remove();
   var el=document.createElement('div');el.className='wp';
@@ -249,19 +250,29 @@ $('cancel').onclick=cancelRoute;
 $('voice').onclick=function(){voiceOn=!voiceOn;this.textContent='Głos: '+(voiceOn?'wł.':'wył.');if(voiceOn)speak('Głos włączony')};
 
 // wyszukiwarka (Nominatim)
+function showResults(items){
+  var box=$('results');box.innerHTML='';box.hidden=false;
+  if(!items.length){box.innerHTML='<button>Nic nie znaleziono</button>';return}
+  items.forEach(function(x){
+    var b=document.createElement('button');b.textContent=x.name;
+    b.onclick=function(){$('q').blur();box.hidden=true;follow=false;$('follow').classList.remove('on');if(map)map.easeTo({center:[x.lon,x.lat],zoom:15});window.setDest&&window.setDest([x.lon,x.lat],x.name)};
+    box.appendChild(b);
+  });
+}
 function search(){
   var q=$('q').value.trim();if(!q)return;
-  var u='https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=pl&q='+encodeURIComponent(q);
+  var box=$('results');box.hidden=false;box.innerHTML='<button>Szukam…</button>';
+  var u='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=pl&q='+encodeURIComponent(q);
   if(me)u+='&viewbox='+[me[0]-.5,me[1]+.5,me[0]+.5,me[1]-.5].join(',');
-  fetch(u).then(function(r){return r.json()}).then(function(list){
-    var box=$('results');box.innerHTML='';box.hidden=false;
-    if(!list.length){box.innerHTML='<button>Nic nie znaleziono</button>';return}
-    list.forEach(function(x){
-      var b=document.createElement('button');b.textContent=x.display_name;
-      b.onclick=function(){$('q').blur();map.easeTo({center:[+x.lon,+x.lat],zoom:15});follow=false;$('follow').classList.remove('on');setDest([+x.lon,+x.lat],x.display_name)};
-      box.appendChild(b);
-    });
-  }).catch(function(){var box=$('results');box.hidden=false;box.innerHTML='<button>Błąd wyszukiwania (brak internetu?)</button>'});
+  fetch(u).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(list){
+    showResults(list.map(function(x){return{name:x.display_name,lon:+x.lon,lat:+x.lat}}));
+  }).catch(function(){
+    var pu='https://photon.komoot.io/api/?limit=6&lang=default&q='+encodeURIComponent(q);
+    if(me)pu+='&lat='+me[1]+'&lon='+me[0];
+    fetch(pu).then(function(r){return r.json()}).then(function(j){
+      showResults(j.features.map(function(f){var p=f.properties;return{name:[p.name,p.street,p.city||p.county,p.country].filter(Boolean).join(', '),lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1]}}));
+    }).catch(function(e){box.innerHTML='<button>Błąd wyszukiwania: '+(e.message||'brak internetu')+'</button>'});
+  });
 }
 $('go').onclick=search;
 $('q').addEventListener('keydown',function(e){if(e.key==='Enter')search()});
